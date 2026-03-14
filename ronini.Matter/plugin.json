@@ -1,0 +1,164 @@
+{
+  "noteplan.minAppVersion": "3.4.0",
+  "macOS.minVersion": "10.13.0",
+  "plugin.id": "ronini.Matter",
+  "plugin.name": "Matter",
+  "plugin.description": "Sync your Matter reading highlights to NotePlan",
+  "plugin.icon": "",
+  "plugin.author": "ronini",
+  "plugin.url": "https://github.com/ronini/noteplan-matter",
+  "plugin.version": "0.1.0",
+  "plugin.script": "script.js",
+  "plugin.commands": [
+    {
+      "name": "Matter: Login",
+      "description": "Authenticate with your Matter account via QR code",
+      "jsFunction": "matterLogin",
+      "alias": ["mlogin"]
+    },
+    {
+      "name": "Matter: Complete Login",
+      "description": "Complete login after scanning the QR code in Matter app",
+      "jsFunction": "matterCompleteLogin",
+      "alias": ["mcomplete"]
+    },
+    {
+      "name": "Matter: Sync",
+      "description": "Sync new highlights from Matter",
+      "jsFunction": "matterSync",
+      "alias": ["msync"]
+    },
+    {
+      "name": "Matter: Rebuild",
+      "description": "Full sync of all highlights from Matter (ignores last sync time)",
+      "jsFunction": "matterRebuild",
+      "alias": ["mrebuild"]
+    },
+    {
+      "name": "Matter: Logout",
+      "description": "Clear Matter authentication tokens",
+      "jsFunction": "matterLogout",
+      "alias": ["mlogout"]
+    },
+    {
+      "name": "onUpdateOrInstall",
+      "description": "Plugin setup/update handler",
+      "jsFunction": "onUpdateOrInstall",
+      "hidden": true
+    },
+    {
+      "name": "onSettingsUpdated",
+      "description": "Settings change handler",
+      "jsFunction": "onSettingsUpdated",
+      "hidden": true
+    }
+  ],
+  "plugin.settings": [
+    {
+      "type": "heading",
+      "title": "Authentication"
+    },
+    {
+      "type": "string",
+      "key": "accessToken",
+      "title": "Access Token (managed automatically via Login command)",
+      "description": "Do not edit manually. Use the 'Matter: Login' command to authenticate.",
+      "default": "",
+      "required": false
+    },
+    {
+      "type": "string",
+      "key": "refreshToken",
+      "title": "Refresh Token (managed automatically)",
+      "description": "Do not edit manually.",
+      "default": "",
+      "required": false
+    },
+    {
+      "type": "heading",
+      "title": "Sync Settings"
+    },
+    {
+      "type": "string",
+      "key": "baseFolder",
+      "title": "Base Folder",
+      "description": "Root folder where Matter notes will be created",
+      "default": "Matter",
+      "required": true
+    },
+    {
+      "type": "string",
+      "key": "tagPrefix",
+      "title": "Tag Prefix",
+      "description": "Prefix to add to imported tags (e.g., 'Matter' becomes 'Matter/tagname')",
+      "default": "Matter",
+      "required": false
+    },
+    {
+      "type": "bool",
+      "key": "groupByType",
+      "title": "Group by Content Type",
+      "description": "Organize notes into subfolders (articles, podcasts, etc.)",
+      "default": false,
+      "required": true
+    },
+    {
+      "type": "bool",
+      "key": "recreateIfMissing",
+      "title": "Recreate Missing Notes",
+      "description": "If a previously synced note is missing, recreate it on next sync",
+      "default": true,
+      "required": true
+    },
+    {
+      "type": "heading",
+      "title": "Note Formatting"
+    },
+    {
+      "type": "choice",
+      "key": "useFrontMatter",
+      "title": "Metadata Format",
+      "description": "How to store article metadata in the note",
+      "choices": ["FrontMatter", "Heading"],
+      "default": "FrontMatter",
+      "required": true
+    },
+    {
+      "type": "choice",
+      "key": "highlightStyle",
+      "title": "Highlight Style",
+      "description": "How to format highlights in the note",
+      "choices": ["quote", "list"],
+      "default": "quote",
+      "required": true
+    },
+    {
+      "type": "bool",
+      "key": "includeHighlightNotes",
+      "title": "Include Highlight Notes",
+      "description": "Show user notes attached to highlights",
+      "default": true,
+      "required": true
+    },
+    {
+      "type": "bool",
+      "key": "includeArticleNote",
+      "title": "Include Article Note",
+      "description": "Show your personal note for the article",
+      "default": true,
+      "required": true
+    },
+    {
+      "type": "heading",
+      "title": "Advanced"
+    },
+    {
+      "type": "string",
+      "key": "_logLevel",
+      "title": "Log Level",
+      "description": "DEBUG, INFO, WARN, ERROR, or none",
+      "default": "DEBUG",
+      "required": true
+    }
+  ]
+}
