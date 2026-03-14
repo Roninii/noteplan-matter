@@ -51,6 +51,12 @@
       "description": "Settings change handler",
       "jsFunction": "onSettingsUpdated",
       "hidden": true
+    },
+    {
+      "name": "onEditorWillSave",
+      "description": "Auto-sync trigger on note save",
+      "jsFunction": "onEditorWillSave",
+      "hidden": true
     }
   ],
   "plugin.settings": [
@@ -77,6 +83,15 @@
     {
       "type": "heading",
       "title": "Sync Settings"
+    },
+    {
+      "type": "choice",
+      "key": "autoSyncInterval",
+      "title": "Auto-Sync Interval",
+      "description": "Automatically sync new highlights in the background. Triggers when you save any note, if enough time has passed.",
+      "choices": ["Off", "Every 30 minutes", "Every hour", "Every 4 hours", "Every 12 hours", "Every 24 hours"],
+      "default": "Every hour",
+      "required": true
     },
     {
       "type": "string",
@@ -150,6 +165,19 @@
     },
     {
       "type": "heading",
+      "title": "Notifications"
+    },
+    {
+      "type": "choice",
+      "key": "notifyOnSync",
+      "title": "Notify on Sync",
+      "description": "When to show a notification after syncing",
+      "choices": ["Always", "Errors only", "Never"],
+      "default": "Errors only",
+      "required": true
+    },
+    {
+      "type": "heading",
       "title": "Advanced"
     },
     {
@@ -157,7 +185,7 @@
       "key": "_logLevel",
       "title": "Log Level",
       "description": "DEBUG, INFO, WARN, ERROR, or none",
-      "default": "DEBUG",
+      "default": "INFO",
       "required": true
     }
   ]

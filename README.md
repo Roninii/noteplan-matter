@@ -2,15 +2,17 @@
 
 A [NotePlan](https://noteplan.co) plugin that syncs your reading highlights from [Matter](https://getmatter.app) into NotePlan notes.
 
-Each article you've highlighted in Matter becomes a note in NotePlan with metadata (author, URL, publisher, tags) and all your highlights formatted as blockquotes.
+Each article you've highlighted in Matter becomes a note in NotePlan with metadata (author, URL, publisher, tags) and all your highlights formatted as blockquotes, separated by horizontal rules for readability.
 
 ## Features
 
 - **QR Code Login** - Authenticate with Matter by scanning a QR code in the Matter mobile app
 - **Full Sync** - Import all your Matter highlights at once
 - **Incremental Sync** - Only fetch new highlights since your last sync
+- **Auto-Sync** - Automatically sync in the background on a configurable interval
 - **Frontmatter Metadata** - Each note includes author, URL, publisher, publication date, and tags
 - **Highlight Notes** - Your annotations on highlights are preserved
+- **Notifications** - Configurable notifications for sync results and errors
 - **Configurable** - Choose between frontmatter or heading-based metadata, quote or list highlight styles, and more
 
 ## Installation
@@ -32,7 +34,7 @@ Each article you've highlighted in Matter becomes a note in NotePlan with metada
 ### Syncing
 
 - **"Matter: Sync"** - Incremental sync (new highlights since last sync)
-- **"Matter: Rebuild"** - Full sync of all highlights (useful for first sync or recovery)
+- **"Matter: Rebuild"** - Full sync of all highlights (useful for first sync or to reformat notes after changing settings)
 
 ### Other Commands
 
@@ -41,17 +43,38 @@ Each article you've highlighted in Matter becomes a note in NotePlan with metada
 
 ## Settings
 
-Configure via NotePlan Preferences > Plugins > Matter:
+Configure via **NotePlan Preferences > Plugins > Matter**:
+
+### Sync Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Base Folder | `Matter` | Root folder where notes are created |
+| Auto-Sync Interval | `Every hour` | How often to automatically sync in the background. Options: Off, Every 30 minutes, Every hour, Every 4 hours, Every 12 hours, Every 24 hours |
+| Base Folder | `Matter` | Root folder where notes are created. Change this if you move your Matter notes |
 | Tag Prefix | `Matter` | Prefix for imported tags (e.g., `Matter/philosophy`) |
-| Metadata Format | `FrontMatter` | `FrontMatter` (YAML) or `Heading` (markdown) |
+| Group by Content Type | `false` | Organize notes into subfolders (articles, podcasts, etc.) |
+| Recreate If Missing | `true` | Recreate deleted notes on next sync |
+
+### Note Formatting
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Metadata Format | `FrontMatter` | `FrontMatter` (YAML) or `Heading` (markdown headings) |
 | Highlight Style | `quote` | `quote` (blockquote) or `list` (bullet points) |
 | Include Highlight Notes | `true` | Show your notes on individual highlights |
 | Include Article Note | `true` | Show your overall note for the article |
-| Recreate If Missing | `true` | Recreate deleted notes on next sync |
+
+### Notifications
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Notify on Sync | `Errors only` | When to show notifications. Options: Always, Errors only, Never |
+
+### Advanced
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Log Level | `INFO` | Logging verbosity in the Plugin Console. Options: DEBUG, INFO, WARN, ERROR, none |
 
 ## Example Note
 
@@ -69,9 +92,13 @@ tags: Matter/reading, Matter/learning
 
 > Quality matters more than quantity. If you read one book a month but fully appreciate and absorb it, you'll be better off than someone who skims through four.
 
+---
+
 > The key to reading well is being selective. Pick books that genuinely interest you.
 
 **Note:** This applies to articles too, not just books
+
+---
 ```
 
 ## How It Works
@@ -82,6 +109,8 @@ The plugin uses the Matter API (`api.getmatter.app/api/v11`) to:
 2. Fetch your highlights feed with pagination
 3. Create or update NotePlan notes with article metadata and highlights
 4. Track sync timestamps for incremental updates
+
+Auto-sync hooks into NotePlan's `onEditorWillSave` event - each time a note is saved, it checks if enough time has elapsed since the last sync and runs a silent incremental sync if so.
 
 Authentication tokens are stored locally via NotePlan's `DataStore` and automatically refresh when expired.
 

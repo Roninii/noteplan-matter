@@ -24,6 +24,35 @@ function _log(level, msg) {
   }
 }
 
+// Show a notification to the user based on their preference.
+// level: "success", "error", "info"
+async function _notify(title, message, level) {
+  var pref = (DataStore.settings && DataStore.settings.notifyOnSync) || "Errors only"
+
+  if (pref === "Never") return
+  if (pref === "Errors only" && level !== "error") return
+
+  // Use CommandBar.prompt for errors (they need acknowledgement)
+  // Use an HTML toast for success/info (less intrusive)
+  if (level === "error") {
+    await CommandBar.prompt(title, message, ["OK"])
+  } else {
+    // Show a small auto-closing HTML toast
+    var color = level === "success" ? "#4CAF50" : "#2196F3"
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<style>' +
+      'body { font-family: -apple-system, sans-serif; background: #2a2a2a; color: #e0e0e0; ' +
+      'padding: 20px 24px; margin: 0; display: flex; flex-direction: column; justify-content: center; }' +
+      'h3 { margin: 0 0 6px 0; font-size: 15px; color: ' + color + '; }' +
+      'p { margin: 0; font-size: 13px; color: #bbb; }' +
+      '</style></head><body>' +
+      '<h3>' + title + '</h3>' +
+      '<p>' + message + '</p>' +
+      '</body></html>'
+    HTMLView.showSheet(html, 320, 90)
+  }
+}
+
 function _isAuthenticated() {
   var at = DataStore.loadData("ACCESS_TOKEN", true)
   var rt = DataStore.loadData("REFRESH_TOKEN", true)
@@ -157,15 +186,11 @@ async function _exchangeQRToken(sessionToken) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_token: sessionToken }),
     })
-    _log("DEBUG", "QR exchange response type: " + typeof response)
-    _log("DEBUG", "QR exchange response: " + String(response).substring(0, 200))
     var data = _parseJSON(response)
-    _log("DEBUG", "QR exchange parsed keys: " + Object.keys(data).join(", "))
     if (data.access_token && data.refresh_token) {
       _log("INFO", "Successfully authenticated with Matter")
       return { accessToken: data.access_token, refreshToken: data.refresh_token }
     }
-    _log("DEBUG", "QR exchange: no tokens in response yet")
     return null
   } catch (e) {
     _log("DEBUG", "QR exchange poll error: " + e.message)
@@ -279,6 +304,8 @@ function _formatHighlight(annotation) {
   if (s.includeHighlightNotes && annotation.note) {
     text += "\n\n**Note:** " + annotation.note
   }
+
+  text += "\n\n---"
 
   return text
 }
@@ -562,20 +589,6 @@ async function _doSync(fullRebuild) {
     var notesCreated = 0
     var highlightsAdded = 0
 
-    // Log the first entry structure for debugging
-    if (result.entries.length > 0) {
-      var sample = result.entries[0]
-      _log("DEBUG", "Sample entry keys: " + Object.keys(sample).join(", "))
-      if (sample.content) {
-        _log("DEBUG", "Sample content keys: " + Object.keys(sample.content).join(", "))
-        _log("DEBUG", "Sample title: " + (sample.content.title || "NONE"))
-        _log("DEBUG", "Sample my_annotations: " + (sample.content.my_annotations ? sample.content.my_annotations.length : "NONE"))
-        _log("DEBUG", "Sample annotations (top-level): " + (sample.annotations ? sample.annotations.length : "NONE"))
-      } else {
-        _log("DEBUG", "Sample entry has NO .content - full keys: " + JSON.stringify(sample).substring(0, 500))
-      }
-    }
-
     for (var i = 0; i < result.entries.length; i++) {
       var entry = result.entries[i]
       CommandBar.showLoading(true, "Processing " + (i + 1) + " of " + result.entries.length + "...")
@@ -601,11 +614,11 @@ async function _doSync(fullRebuild) {
 
     var msg = "Synced " + highlightsAdded + " highlights across " + notesCreated + " notes"
     _log("INFO", msg)
-    await CommandBar.prompt("Sync Complete", msg, ["OK"])
+    await _notify("Sync Complete", msg, "success")
   } catch (e) {
     CommandBar.showLoading(false)
     _log("ERROR", "Sync error: " + e.message)
-    await CommandBar.prompt("Sync Error", "Failed to sync: " + e.message, ["OK"])
+    await _notify("Sync Error", "Failed to sync: " + e.message, "error")
   }
 }
 
@@ -615,4 +628,65 @@ function onUpdateOrInstall() {
 
 function onSettingsUpdated() {
   _log("DEBUG", "Settings updated")
+}
+
+function _getAutoSyncIntervalMs() {
+  var setting = (DataStore.settings && DataStore.settings.autoSyncInterval) || "Off"
+  var intervals = {
+    "Off": 0,
+    "Every 30 minutes": 30 * 60 * 1000,
+    "Every hour": 60 * 60 * 1000,
+    "Every 4 hours": 4 * 60 * 60 * 1000,
+    "Every 12 hours": 12 * 60 * 60 * 1000,
+    "Every 24 hours": 24 * 60 * 60 * 1000,
+  }
+  return intervals[setting] || 0
+}
+
+async function onEditorWillSave() {
+  var intervalMs = _getAutoSyncIntervalMs()
+  if (intervalMs === 0) return
+  if (!_isAuthenticated()) return
+
+  var lastSync = _getLastSyncTime()
+  if (!lastSync) return // never synced yet - user should run manual sync first
+
+  var elapsed = Date.now() - lastSync.getTime()
+  if (elapsed < intervalMs) return
+
+  _log("INFO", "Auto-sync triggered (" + Math.round(elapsed / 60000) + " min since last sync)")
+
+  // Run a silent incremental sync (no prompts or loading indicators)
+  var tokens = _getTokens()
+  try {
+    var result = await _fetchAllHighlights(tokens.accessToken, tokens.refreshToken)
+
+    if (result.newTokens) {
+      _saveTokens(result.newTokens.accessToken, result.newTokens.refreshToken)
+    }
+
+    var notesCreated = 0
+    var highlightsAdded = 0
+    var lastSyncTime = _getLastSyncTime()
+
+    for (var i = 0; i < result.entries.length; i++) {
+      var count = await _appendNewHighlights(result.entries[i], lastSyncTime)
+      if (count > 0) {
+        notesCreated++
+        highlightsAdded += count
+      }
+    }
+
+    _setLastSyncTime()
+
+    if (highlightsAdded > 0) {
+      _log("INFO", "Auto-sync complete: " + highlightsAdded + " highlights across " + notesCreated + " notes")
+      await _notify("Matter Auto-Sync", highlightsAdded + " new highlights synced", "success")
+    } else {
+      _log("DEBUG", "Auto-sync complete: no new highlights")
+    }
+  } catch (e) {
+    _log("ERROR", "Auto-sync error: " + e.message)
+    await _notify("Matter Sync Error", e.message, "error")
+  }
 }
